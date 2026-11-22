@@ -259,9 +259,25 @@ function fallToNextIsland(dir) {
     // footprint check keeps them off authored solids, so no shack ever sits on
     // a landmark.
     const pads = (authored && next.shackPads) ? next.shackPads.slice() : [];
+    const shackDims = (typeof BUILDING_TIERS !== 'undefined' && BUILDING_TIERS.shack)
+        ? BUILDING_TIERS.shack : { w: 8, h: 5 };
     const padInUse = (px, py) => buildings.some(b =>
         px >= b.gridX - 2 && px <= b.gridX + b.tileSize.w + 2 &&
         py >= b.gridY - 2 && py <= b.gridY + b.tileSize.h + 4);
+    // A pad is only usable if the whole footprint (+ the clear ring
+    // clearBuildingFootprint touches) is already walkable open ground — a pad
+    // overlapping water, rocks, trees or foundations is skipped rather than
+    // having its surroundings bulldozed into grass.
+    const padBlockedTypes = new Set(['void', 'water', 'sea', 'rock', 'shiny_rock', 'tree', 'fir_tree', 'foundation', 'dock']);
+    const padClear = (px, py) => {
+        for (let dx = -1; dx <= shackDims.w; dx++) {
+            for (let dy = -1; dy <= shackDims.h + 2; dy++) {
+                const t = next.tiles[px + dx] && next.tiles[px + dx][py + dy];
+                if (!t || t.solid === true || padBlockedTypes.has(t.type)) return false;
+            }
+        }
+        return true;
+    };
     for (const npc of npcs) {
         npc.hasHome = false;
         npc.hutX = null;
@@ -269,7 +285,7 @@ function fallToNextIsland(dir) {
         let placed = false;
         while (pads.length) {
             const pad = pads.shift();
-            if (padInUse(pad.x, pad.y)) continue;
+            if (padInUse(pad.x, pad.y) || !padClear(pad.x, pad.y)) continue;
             const sx = clampToLand(biome, pad.x);
             const sy = clampToLand(biome, pad.y);
             const b = new Building('shack', sx, sy, npc.id);

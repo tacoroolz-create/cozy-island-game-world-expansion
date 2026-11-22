@@ -741,7 +741,8 @@ function clearBuildingFootprint(b) {
             if (tx < 0 || tx >= CONFIG.WORLD_WIDTH || ty < 0 || ty >= CONFIG.WORLD_HEIGHT) continue;
             if (!world.tiles[tx] || !world.tiles[tx][ty]) continue;
             const t = world.tiles[tx][ty];
-            if (t.type !== 'sea' && t.type !== 'beach' && t.type !== 'void') {
+            if (t.type !== 'sea' && t.type !== 'beach' && t.type !== 'void' &&
+                t.type !== 'foundation' && t.type !== 'dock' && t.type !== 'path') {
                 world.tiles[tx][ty] = { type: 'grass', variant: 0 };
             }
         }
@@ -9071,7 +9072,9 @@ class World {
                 }
                 // v5 saves may still have removed flower/water decorations.
                 // (Tulips are now valid harvestable content again.)
-                if (tile.type === 'flower' || tile.type === 'water') {
+                // Legacy depth-0 worlds only: biome islands are authored in CSV
+                // and their 'water' tiles (pond, creek, fountain) must survive.
+                if (!this.biome && (tile.type === 'flower' || tile.type === 'water')) {
                     this.tiles[x][y] = { type: 'grass', variant: 0 };
                 }
                 // Legacy 'weeds' tiles are gone; tall grass replaces them. Old

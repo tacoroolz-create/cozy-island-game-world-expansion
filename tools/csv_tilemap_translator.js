@@ -213,7 +213,7 @@ const CSV_TILEMAP = (function () {
     const ISLAND_LEGEND = {
         'V': { type: 'void',      solid: true,  variant: 0, desc: 'Void / sky — solid, prompts the fall when stepped into' },
         'g': { type: 'grass',     solid: false, variant: 0, desc: 'Grass' },
-        's': { type: 'sand',     solid: false, variant: 0, desc: 'Sand (paths, shores, plazas)' },
+        's': { type: 'beach',    solid: false, variant: 0, desc: 'Sand (paths, shores, plazas) — reuses the drawn beach tile' },
         'e': { type: 'sea',      solid: true,  variant: 0, desc: 'Sea (solid; decorative open water)' },
         'w': { type: 'water',    solid: true,  variant: 0, desc: 'Pond / creek water' },
         'd': { type: 'dock',     solid: false, variant: 0, desc: 'Dock planks (bridges, crosswalks)' },

@@ -5,6 +5,8 @@
 const fs = require('fs'), vm = require('vm');
 
 // World/Building stubs faithful to the real shapes islands.js relies on.
+// Shack exterior footprint (matches BUILDING_TIERS.shack: w 8, h 8).
+const SHACK_W = 8, SHACK_H = 8;
 class World {
     constructor(kind, id) {
         this.kind = kind; this.id = id; this.tiles = [];
@@ -15,10 +17,11 @@ class World {
 class Building {
     constructor(type, gridX, gridY, owner) {
         this.type = type; this.gridX = gridX; this.gridY = gridY; this.owner = owner || null;
-        this.tileSize = { w: 8, h: 5 };   // matches BUILDING_TIERS.shack
+        this.tileSize = { w: SHACK_W, h: SHACK_H };
     }
 }
-// Mirror of game.js clearBuildingFootprint (with the void skip).
+// Mirror of game.js clearBuildingFootprint (void + base/decor tiles skipped).
+const CLEAR_SKIP = new Set(['sea', 'beach', 'void', 'foundation', 'dock', 'path']);
 function clearBuildingFootprint(b) {
     const ts = b.tileSize;
     for (let dx = -1; dx <= ts.w; dx++) {
@@ -27,7 +30,7 @@ function clearBuildingFootprint(b) {
             if (tx < 0 || tx >= ctx.CONFIG.WORLD_WIDTH || ty < 0 || ty >= ctx.CONFIG.WORLD_HEIGHT) continue;
             if (!ctx.world.tiles[tx] || !ctx.world.tiles[tx][ty]) continue;
             const t = ctx.world.tiles[tx][ty];
-            if (t.type !== 'sea' && t.type !== 'beach' && t.type !== 'void') {
+            if (!CLEAR_SKIP.has(t.type)) {
                 ctx.world.tiles[tx][ty] = { type: 'grass', variant: 0 };
             }
         }
@@ -37,6 +40,7 @@ function clearBuildingFootprint(b) {
 const ctx = {
     CONFIG: { CANVAS_WIDTH: 320, CANVAS_HEIGHT: 192, WORLD_WIDTH: 100, WORLD_HEIGHT: 100 },
     World, Building, clearBuildingFootprint,
+    BUILDING_TIERS: { shack: { w: SHACK_W, h: SHACK_H } },
     currentMapId: 'island', world: null, player: { x: 0, y: 0 }, npcs: [], buildings: [], maps: {},
     insideBuilding: null, fallPrompt: null, fallAnim: null,
     millis: () => 0, notify: () => {}, lerp: (a, b, t) => a + (b - a) * t,
@@ -97,6 +101,26 @@ for (const b of ISLAND_BIOMES) {
 const CSV_DIR = 'assets/maps';
 const PAD_COUNTS = { meadow: 2, woods: 2, town: 4, city: 3, deep_woods: 2, mountain: 2 };
 const ISLAND_LEGEND = vm.runInContext('CSV_TILEMAP.ISLAND_LEGEND', ctx);
+// Invariant (a): every legend tile type has a drawTile case in game.js.
+// 'void' is the documented exception — it renders as nothing on purpose so the
+// drawIslandVoidBackdrop sky shows through it.
+const gameSrc = fs.readFileSync('src/game.js', 'utf8');
+const drawTileSrc = (() => {
+    const marker = gameSrc.indexOf('drawTile(x, y, tile) {');
+    if (marker < 0) return '';
+    let depth = 0, i = gameSrc.indexOf('{', marker);
+    const start = i;
+    for (; i < gameSrc.length; i++) {
+        if (gameSrc[i] === '{') depth++;
+        else if (gameSrc[i] === '}') { depth--; if (depth === 0) break; }
+    }
+    return gameSrc.slice(start, i + 1);
+})();
+for (const [ch, def] of Object.entries(ISLAND_LEGEND)) {
+    if (def.type === 'void') continue;
+    ok(new RegExp("case '" + def.type + "'").test(drawTileSrc),
+        "legend '" + ch + "' type '" + def.type + "' has a drawTile case");
+}
 const CSV_MAPS = {};
 for (const b of ISLAND_BIOMES) {
     const file = CSV_DIR + '/' + b.id + '.csv';
@@ -140,17 +164,63 @@ for (const b of ISLAND_BIOMES) {
         const t = w.tiles[a.x][a.y];
         ok(t && t.type !== 'void' && t.solid !== true, b.id + ' authored arrival from ' + dir + ' is walkable');
     }
-    // Shack pads: on plain walkable grass inside the land square, with room for
-    // a full shack footprint (8x5 + clear ring) that never touches void.
+    // Shack pads: on plain walkable grass inside the land square. Invariant
+    // (c): the full footprint the shack + clearBuildingFootprint touch
+    // (8x8 shack + 1-ring + 2 exit rows) is open walkable ground — no water,
+    // rock, tree, foundation or dock gets bulldozed into grass.
     for (const pad of w.shackPads || []) {
         ok(pad.x >= m && pad.x <= hi && pad.y >= m && pad.y <= hi, b.id + ' pad inside land');
-        const pt = w.tiles[pad.x][pad.y];
-        ok(pt.type === 'grass' && pt.solid !== true, b.id + ' pad at ' + pad.x + ',' + pad.y + ' is walkable grass');
-        for (let dx = -1; dx <= 8; dx++) for (let dy = -1; dy <= 7; dy++) {
-            const t = w.tiles[pad.x + dx] && w.tiles[pad.x + dx][pad.y + dy];
-            ok(t && t.type !== 'void', b.id + ' pad footprint clear of void at ' + (pad.x + dx) + ',' + (pad.y + dy));
+        for (let dx = -1; dx <= SHACK_W; dx++) {
+            for (let dy = -1; dy <= SHACK_H + 2; dy++) {
+                const t = w.tiles[pad.x + dx] && w.tiles[pad.x + dx][pad.y + dy];
+                const good = t && !t.solid && t.type !== 'void' && t.type !== 'water' && t.type !== 'sea' &&
+                             t.type !== 'rock' && t.type !== 'shiny_rock' && t.type !== 'tree' &&
+                             t.type !== 'fir_tree' && t.type !== 'foundation' && t.type !== 'dock';
+                ok(good, b.id + ' pad at ' + pad.x + ',' + pad.y + ' footprint clear at ' +
+                         (pad.x + dx) + ',' + (pad.y + dy) + ' (found ' + (t && t.type) + ')');
+            }
         }
     }
+}
+
+// ===== Invariant (b): authored water survives serialize -> deserialize =====
+// Extract the real World.deserialize from game.js and run it over a JSON
+// round-trip of an authored meadow world.
+const desMarker = gameSrc.indexOf('    deserialize(data) {', gameSrc.indexOf('class World'));
+ok(desMarker > 0, 'World.deserialize found in game.js');
+if (desMarker > 0) {
+    let depth = 0, i = gameSrc.indexOf('{', desMarker);
+    const start = i;
+    for (; i < gameSrc.length; i++) {
+        if (gameSrc[i] === '{') depth++;
+        else if (gameSrc[i] === '}') { depth--; if (depth === 0) break; }
+    }
+    const deserialize = new Function('CONFIG', 'data', gameSrc.slice(start + 1, i));
+    const meadowWorld = buildAuthoredBiomeIsland(ISLAND_BIOMES[0], CSV_MAPS.meadow);
+    const json = JSON.parse(JSON.stringify({
+        day: meadowWorld.day, season: meadowWorld.season, timeMinutes: meadowWorld.timeMinutes,
+        depth: 1, biome: 'meadow', tiles: meadowWorld.tiles
+    }));
+    const loaded = { tiles: json.tiles };
+    deserialize.call(loaded, ctx.CONFIG, json);
+    let water = 0, lost = 0;
+    for (let x = 0; x < ctx.CONFIG.WORLD_WIDTH; x++) for (let y = 0; y < ctx.CONFIG.WORLD_HEIGHT; y++) {
+        const orig = json.tiles[x][y], now = loaded.tiles[x][y];
+        if (orig.type === 'water') {
+            water++;
+            if (now.type !== 'water') lost++;
+        }
+        if (orig.type === 'void' && (now.type !== 'void' || now.solid !== true)) lost++;
+    }
+    ok(water > 0, 'meadow authored world has water tiles');
+    ok(lost === 0, 'deserialize keeps all ' + water + ' water tiles (and void solid) on a biome world');
+    // Legacy depth-0 worlds (biome null) still migrate water away.
+    const legacy = { tiles: JSON.parse(JSON.stringify(json.tiles)) };
+    deserialize.call(legacy, ctx.CONFIG, { day: 1, season: 'Sweet', timeMinutes: 480, depth: 0, biome: null, tiles: legacy.tiles });
+    let legacyWater = 0;
+    for (let x = 0; x < ctx.CONFIG.WORLD_WIDTH; x++) for (let y = 0; y < ctx.CONFIG.WORLD_HEIGHT; y++)
+        if (legacy.tiles[x][y].type === 'water') legacyWater++;
+    ok(legacyWater === 0, 'legacy depth-0 water still migrates to grass');
 }
 
 // ===== Simulated fall chain: depth 0 -> 7 =====
@@ -170,12 +240,13 @@ for (let depth = 1; depth <= 7; depth++) {
     okChain = okChain && ctx.world.authored === true;
     // Shack pads were used for the follower: their shack sits on an 'S' pad.
     if (depth <= 6) okChain = okChain && npc.hasHome && npc.hutX !== null;
-    // Player shack footprint stays fully on land (never bites the void ring).
+    // Shacks start on land; the clear ring may reach over the void edge (it is
+    // skipped by clearBuildingFootprint, never grass-ified).
     const m2 = islandVoidMargin(b.land);
     for (const bu of ctx.buildings) {
         okChain = okChain && bu.gridX >= m2 && bu.gridY >= m2 &&
                   bu.gridX + bu.tileSize.w < ISLAND_GRID - m2 &&
-                  bu.gridY + bu.tileSize.h + 2 < ISLAND_GRID - m2;
+                  bu.gridY + bu.tileSize.h < ISLAND_GRID - m2;
     }
 }
 ok(okChain, 'fall chain 0->7 completes with authored islands and pad shacks');
