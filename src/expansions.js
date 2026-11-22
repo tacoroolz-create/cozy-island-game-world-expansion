@@ -186,26 +186,26 @@ function tryInteractIslandTile() {
     if (!facing || !facing.tile) return false;
     const t = facing.tile;
     if (t.type === 'ship') {
-        notify(SHIP_TEXT);
+        announce(SHIP_TEXT);
         return true;
     }
     if (t.type === 'bench' || t.type === 'plaque') {
-        notify(t.interactText || '...');
+        announce(t.interactText || '...');
         return true;
     }
     if (t.type === 'beach_stairs') {
-        notify(t.interactText || SEA_STAIRS_TEXT);
+        announce(t.interactText || SEA_STAIRS_TEXT);
         return true;
     }
     if (t.type === 'keepsake') {
         const ks = KEEPSAKES[t.keepsakeId];
         if (!ks) return false;
         if (keepsakesFound[t.keepsakeId]) {
-            notify("You've already kept the " + ks.name + '.');
+            announce("You've already kept the " + ks.name + '.');
             return true;
         }
         inventory.addItem(t.keepsakeId, 1);
-        notify(ks.pickup);
+        announce(ks.pickup);
         keepsakesFound[t.keepsakeId] = true;
         // The landmark fades back to plain grass once it's given you its gift.
         world.tiles[facing.x][facing.y] = { type: 'grass', variant: 0 };
