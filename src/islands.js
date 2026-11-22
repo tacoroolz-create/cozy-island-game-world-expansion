@@ -260,7 +260,7 @@ function fallToNextIsland(dir) {
     // a landmark.
     const pads = (authored && next.shackPads) ? next.shackPads.slice() : [];
     const shackDims = (typeof BUILDING_TIERS !== 'undefined' && BUILDING_TIERS.shack)
-        ? BUILDING_TIERS.shack : { w: 8, h: 5 };
+        ? BUILDING_TIERS.shack : { w: 8, h: 8 };
     const padInUse = (px, py) => buildings.some(b =>
         px >= b.gridX - 2 && px <= b.gridX + b.tileSize.w + 2 &&
         py >= b.gridY - 2 && py <= b.gridY + b.tileSize.h + 4);
@@ -268,6 +268,10 @@ function fallToNextIsland(dir) {
     // clearBuildingFootprint touches) is already walkable open ground — a pad
     // overlapping water, rocks, trees or foundations is skipped rather than
     // having its surroundings bulldozed into grass.
+    // Note: 'beach'/'path' are deliberately NOT blocked here even though
+    // clearBuildingFootprint's CLEAR_SKIP preserves them — an authored plaza
+    // pad on open sand is valid, so the two skip-sets are intentionally
+    // asymmetric. Keep them in sync only when semantics actually change.
     const padBlockedTypes = new Set(['void', 'water', 'sea', 'rock', 'shiny_rock', 'tree', 'fir_tree', 'foundation', 'dock']);
     const padClear = (px, py) => {
         for (let dx = -1; dx <= shackDims.w; dx++) {
