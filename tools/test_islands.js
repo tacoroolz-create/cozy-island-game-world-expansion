@@ -182,6 +182,7 @@ for (const b of ISLAND_BIOMES) {
 const LANDMARK_REQ = { meadow: ['m', 'B'], woods: ['x'], town: ['z'], city: ['y'], deep_woods: ['v'], mountain: ['A', 'q', 'o'] };
 const WALKABLE = new Set(['g', 's', 'd', 'F', 'u', 'p', 'D']);
 const seenKeepsakes = {};
+const mainWalkable = {};
 for (const b of ISLAND_BIOMES) {
     const grid = CSV_MAPS[b.id];
     if (!grid) continue;
@@ -201,10 +202,45 @@ for (const b of ISLAND_BIOMES) {
                 ok(typeof def.interactText === 'string' && def.interactText.length > 10,
                    b.id + " landmark '" + ch + "' carries interact text");
             }
-            // Approachable: at least one orthogonal neighbor is walkable.
-            const nbs = [y > 0 ? grid[y - 1][x] : null, y + 1 < grid.length ? grid[y + 1][x] : null,
-                         x > 0 ? grid[y][x - 1] : null, x + 1 < grid[y].length ? grid[y][x + 1] : null];
-            ok(nbs.some(n => n && WALKABLE.has(n)), b.id + " landmark '" + ch + "' at " + x + ',' + y + ' has a walkable neighbor');
+            // Approachable: at least one orthogonal neighbor must belong to the
+            // MAIN walkable component (largest flood-filled region), computed on
+            // PARSED tiles. NOTE: grid rows are raw comma-joined strings, so the
+            // x above is a string index — convert it to a real tile column. A
+            // walkable neighbor inside a sealed pocket (fountain bowl, fir
+            // pocket) does NOT count: that hid unreachable keepsakes.
+            if (!mainWalkable[b.id]) {
+                const rows = grid.map(l => l.split(',').map(c => c.trim()));
+                const comp = {};
+                let bestId = 0, bestSize = 0, cid = 0;
+                for (let yy = 0; yy < rows.length; yy++) {
+                    for (let xx = 0; xx < rows[yy].length; xx++) {
+                        if (comp[xx + ',' + yy] !== undefined || !WALKABLE.has(rows[yy][xx])) continue;
+                        cid++;
+                        let queue = [[xx, yy]], n = 0;
+                        comp[xx + ',' + yy] = cid;
+                        while (queue.length) {
+                            const cell = queue.pop(); n++;
+                            for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) {
+                                const nx = cell[0] + d[0], ny = cell[1] + d[1];
+                                if (ny < 0 || ny >= rows.length || nx < 0 || nx >= rows[ny].length) continue;
+                                if (comp[nx + ',' + ny] !== undefined || !WALKABLE.has(rows[ny][nx])) continue;
+                                comp[nx + ',' + ny] = cid;
+                                queue.push([nx, ny]);
+                            }
+                        }
+                        if (n > bestSize) { bestSize = n; bestId = cid; }
+                    }
+                }
+                mainWalkable[b.id] = { comp, bestId, size: bestSize, rows };
+            }
+            const mw = mainWalkable[b.id];
+            // string index -> tile column (commas before this index)
+            const col = mw.rows[y].length > 0 ? grid[y].slice(0, x).split(',').length - 1 : x;
+            const nbs = [[col, y - 1], [col, y + 1], [col - 1, y], [col + 1, y]]
+                .filter(([nx, ny]) => ny >= 0 && ny < mw.rows.length && nx >= 0 && nx < mw.rows[ny].length)
+                .map(([nx, ny]) => nx + ',' + ny);
+            ok(nbs.some(k => mw.comp[k] === mw.bestId),
+               b.id + " landmark '" + ch + "' at tile " + col + ',' + y + ' touches the MAIN walkable component');
         }
     }
     for (const ch of want) {

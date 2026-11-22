@@ -67,7 +67,7 @@ const FACADE_FITOUTS = {
         floor: [
             [4, 2, 'fireplace'],    // hearth against the back wall, right side
             [2, 3, 'armchair'],     // a chair by the hearth
-            [3, 4, 'potted_plant']  // a plant in the corner by the door wall
+            [1, 3, 'potted_plant']  // a plant in the far corner (kept clear of the door spawn tile)
         ],
         rug: [3, 3, 'round_rug'],
         deco: [4, 1, 'painting']    // painting above the hearth
