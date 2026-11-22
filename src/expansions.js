@@ -226,7 +226,7 @@ let SHIP_TEXT_POS = null;
 function shipBlockOrigin() {
     if (!SHIP_TEXT_POS) {
         const dockY = (typeof ISLAND_DOCK_ORIGIN !== 'undefined') ? ISLAND_DOCK_ORIGIN.y : 48;
-        SHIP_TEXT_POS = { x0: 1, y0: dockY + 4 };   // pier is 4 tiles tall: y0 = south face row
+        SHIP_TEXT_POS = { x0: 1, y0: dockY + 5 };   // one row south of the pier face: fully in open water, not the sand-rimmed pocket
     }
     return SHIP_TEXT_POS;
 }

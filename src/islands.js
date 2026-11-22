@@ -206,9 +206,22 @@ function promptFallAt(p, nx, ny) {
     if (target.type === 'void') { fallPrompt = { dir }; return true; }
     // Island 0 is the original island: it has a real ocean, not a void ring, so
     // its one way down is the end of the pier — "the last link to above."
-    if (islandDepth() === 0 && target.type === 'sea' && here && here.type === 'dock') {
-        fallPrompt = { dir };
-        return true;
+    // The pier's walkable deck (rows DOCK_DECK_Y0..Y1) is separated from the
+    // sea by its own solid face rows (deck-1 and deck+1), so a sea-step test
+    // alone can never fire — also accept stepping into a solid dock FACE.
+    if (islandDepth() === 0) {
+        if (target.type === 'sea' && here && here.type === 'dock') {
+            fallPrompt = { dir };
+            return true;
+        }
+        if (target.type === 'dock' && here && here.type === 'dock'
+                && !isSolidTile(p.x, p.y) && isSolidTile(nx, ny) && ny > p.y) {
+            // Walking off the deck's south edge into the pier's bottom face —
+            // the way down. (The top face is NOT an exit: there is no island
+            // above island 0.)
+            fallPrompt = { dir: 'down' };
+            return true;
+        }
     }
     return false;
 }

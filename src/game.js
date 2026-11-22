@@ -8390,6 +8390,29 @@ class World {
         const screenX = x * TS;
         const screenY = y * TS;
 
+        // Batch 3: the moored ship is a 3x2 sprite that overflows its tile.
+        // Drawn here in the post-pass so later tiles can't repaint sea over it
+        // (drawing it inside drawTile left only the origin tile's sliver visible).
+        if (tile.type === 'ship') {
+            if (!tile.shipOrigin) return;
+            const ship = SPRITES['tiles.ship'];
+            if (ship) {
+                image(ship, screenX, screenY, TS * 3, TS * 2);
+            } else {
+                // Fallback: dark hull with a little mast, spanning 3x2 tiles.
+                noStroke();
+                fill('#5b4636');
+                rect(screenX, screenY + TS, TS * 3, TS);
+                fill('#efe3c4');
+                rect(screenX, screenY + TS * 2 - 4, TS * 3, 4);
+                fill('#8a5a34');
+                rect(screenX + TS * 2, screenY - TS, 2, TS * 2);
+                fill('#efe3c4');
+                triangle(screenX + TS * 2 + 2, screenY - TS, screenX + TS * 2 + 2, screenY + TS - 2, screenX + TS * 3 - 2, screenY + TS - 2);
+            }
+            return;
+        }
+
         // Underground thicket: bottom-anchored 32px trees/boulders on 16px
         // tiles. Deferred here so neighbouring wall bases can't clip them.
         // variant 0-2 tree, 3-5 boulder, >=6 plain rock for breathing room.
@@ -9207,27 +9230,11 @@ class World {
             // ===== Batch 3: expansion landmarks =====
             case 'ship': {
                 // Decorative ship moored alongside the pier. The 48x32 sprite
-                // covers a 3x2 tile block; only the NW tile (shipOrigin) draws
-                // it, the rest just redraw the sea the block sits in.
-                const ship = SPRITES['tiles.ship'];
-                if (tile.shipOrigin) {
-                    if (ship) {
-                        image(ship, screenX, screenY, TS * 3, TS * 2);
-                    } else {
-                        // Fallback: dark hull with a little mast, 3x2 tiles.
-                        fill('#5b4636');
-                        rect(screenX + TS, screenY, TS * 2, TS * 2);
-                        fill('#efe3c4');
-                        rect(screenX + TS, screenY + TS, TS * 2, 4);
-                        fill('#8a5a34');
-                        rect(screenX + TS * 2, screenY - TS, 2, TS);
-                        fill('#efe3c4');
-                        triangle(screenX + TS * 2 + 2, screenY - TS, screenX + TS * 2 + 2, screenY - 2, screenX + TS * 3 - 2, screenY - 2);
-                    }
-                } else {
-                    fill('#3D6E8F');   // calm sea the hull sits in
-                    rect(screenX, screenY, TS, TS);
-                }
+                // covers a 3x2 tile block; every tile here just lays the sea
+                // base — the sprite itself is drawn in the post-pass
+                // (drawTallDecoration) so nothing can repaint over it.
+                fill('#3D6E8F');   // calm sea the hull sits in
+                rect(screenX, screenY, TS, TS);
                 break;
             }
             case 'bench': {
