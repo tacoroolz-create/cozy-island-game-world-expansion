@@ -8702,6 +8702,9 @@ class World {
                         // tile by the terrain underneath it so the shoreline runs
                         // straight through the dock band instead of jogging around it.
                         if (t.type === 'dock') return islandZone(nx, ny);
+                        // A moored ship is water with a boat on it, not land —
+                        // otherwise the shoreline wraps the hull in a sand frame.
+                        if (t.type === 'ship') return 'sea';
                         return t.type;
                     }
                     function isLandType(type) {
@@ -9229,12 +9232,10 @@ class World {
             }
             // ===== Batch 3: expansion landmarks =====
             case 'ship': {
-                // Decorative ship moored alongside the pier. The 48x32 sprite
-                // covers a 3x2 tile block; every tile here just lays the sea
-                // base — the sprite itself is drawn in the post-pass
-                // (drawTallDecoration) so nothing can repaint over it.
-                fill('#3D6E8F');   // calm sea the hull sits in
-                rect(screenX, screenY, TS, TS);
+                // Ship tiles share the animated sea base (a flat fill read as
+                // a pale "sticker box" around the hull); the 48x32 ship sprite
+                // itself is drawn in the post-pass (drawTallDecoration).
+                this.drawTile(x, y, { type: 'sea' });
                 break;
             }
             case 'bench': {
