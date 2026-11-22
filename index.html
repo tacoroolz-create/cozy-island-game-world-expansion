@@ -93,6 +93,9 @@
             // Core game
             'src/engine.js',
             'src/game.js',
+            // CSV tilemap translator (underground + authored biome islands).
+            // Must load AFTER game.js (needs World/CONFIG) and BEFORE islands.js.
+            'tools/csv_tilemap_translator.js',
             // Bitmap pixel font for crisp canvas UI text
             'src/pixelfont.js',
             // Daycycle system

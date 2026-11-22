@@ -82,6 +82,24 @@ function isVoidTile(x, y) {
 
 // ===== GENERATION =====
 
+// Authored maps: each biome (except depth-0 beach) may have a hand-authored
+// CSV loaded in game.js preload into ISLAND_CSV_MAPS. When present it replaces
+// the procedural scatter entirely — no random decor is placed on top (the CSV
+// is the whole layout). Falls back to generateBiomeIsland on any problem.
+function buildAuthoredBiomeIsland(biome, csvText) {
+    if (Array.isArray(csvText)) csvText = csvText.join('\n');
+    if (!csvText || typeof csvText !== 'string' || typeof CSV_TILEMAP === 'undefined') return null;
+    try {
+        const w = CSV_TILEMAP.buildIslandFromCSV(csvText, biome.id);
+        w.biome = biome.id;
+        w.authored = true;
+        return w;
+    } catch (e) {
+        console.warn('authored island for ' + biome.id + ' failed to build; falling back to procedural:', e && e.message);
+        return null;
+    }
+}
+
 // Fill `w.tiles` with a floating island for `biome`. Mirrors World.generateWorld()
 // but with a void ring instead of an ocean, and a per-biome decoration mix.
 function generateBiomeIsland(w, biome) {
@@ -204,14 +222,18 @@ function fallToNextIsland(dir) {
     const biome = islandBiomeFor(depth);
     const followers = npcs.filter(n => n.isPresent);
 
-    const next = new World('blank', 'island');
+    // Prefer the hand-authored CSV for this biome; procedural is the fallback.
+    const csvText = (typeof ISLAND_CSV_MAPS !== 'undefined' && ISLAND_CSV_MAPS)
+        ? ISLAND_CSV_MAPS[biome.id] : null;
+    const authored = buildAuthoredBiomeIsland(biome, csvText);
+    const next = authored || new World('blank', 'island');
     next.kind = 'island';
     next.depth = depth;
     next.biome = biome.id;
     next.day = world.day;
     next.season = world.season;
     next.timeMinutes = world.timeMinutes;
-    generateBiomeIsland(next, biome);
+    if (!authored) generateBiomeIsland(next, biome);
 
     maps.island = next;
     world = next;
@@ -231,10 +253,38 @@ function fallToNextIsland(dir) {
     buildings.push(shack);
 
     npcs = followers;
+    // Authored maps mark where follower shacks should land ('S' pads in the
+    // CSV). Pad shacks go exactly there; only when a biome's pads are used up
+    // (or the map has none) do NPCs fall back to the clear-land search — whose
+    // footprint check keeps them off authored solids, so no shack ever sits on
+    // a landmark.
+    const pads = (authored && next.shackPads) ? next.shackPads.slice() : [];
+    const padInUse = (px, py) => buildings.some(b =>
+        px >= b.gridX - 2 && px <= b.gridX + b.tileSize.w + 2 &&
+        py >= b.gridY - 2 && py <= b.gridY + b.tileSize.h + 4);
     for (const npc of npcs) {
         npc.hasHome = false;
         npc.hutX = null;
         npc.hutY = null;
+        let placed = false;
+        while (pads.length) {
+            const pad = pads.shift();
+            if (padInUse(pad.x, pad.y)) continue;
+            const sx = clampToLand(biome, pad.x);
+            const sy = clampToLand(biome, pad.y);
+            const b = new Building('shack', sx, sy, npc.id);
+            npc.hasHome = true;
+            npc.hutX = sx;
+            npc.hutY = sy;
+            npc.gridX = sx;
+            npc.gridY = sy;
+            clearBuildingFootprint(b);
+            buildings.push(b);
+            notify(npc.name + ' built a shack!');
+            placed = true;
+            break;
+        }
+        if (placed) continue;
         npc.gridX = clampToLand(biome, player.x + Math.floor(Math.random() * 16 - 8));
         npc.gridY = clampToLand(biome, player.y + Math.floor(Math.random() * 16 - 8));
         buildNpcShack(npc);

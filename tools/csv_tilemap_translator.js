@@ -204,6 +204,70 @@ const CSV_TILEMAP = (function () {
         return world;
     }
 
+    // Island legend — one biome island per CSV, stamped centered into the
+    // 100x100 grid with solid void filling everything outside the CSV. Char
+    // choices avoid both the DEFAULT_LEGEND chars and each other; every entry
+    // is documented with a desc. Tile types all exist in the engine (game.js
+    // TILE_SOLID + draw cases); 'S' pads are plain grass plus a shackPad marker
+    // so NPC follower shacks can land on authored spots instead of random ones.
+    const ISLAND_LEGEND = {
+        'V': { type: 'void',      solid: true,  variant: 0, desc: 'Void / sky — solid, prompts the fall when stepped into' },
+        'g': { type: 'grass',     solid: false, variant: 0, desc: 'Grass' },
+        's': { type: 'sand',     solid: false, variant: 0, desc: 'Sand (paths, shores, plazas)' },
+        'e': { type: 'sea',      solid: true,  variant: 0, desc: 'Sea (solid; decorative open water)' },
+        'w': { type: 'water',    solid: true,  variant: 0, desc: 'Pond / creek water' },
+        'd': { type: 'dock',     solid: false, variant: 0, desc: 'Dock planks (bridges, crosswalks)' },
+        't': { type: 'tree',     solid: true,  variant: 0, desc: 'Oak tree trunk (canopy added above)' },
+        'f': { type: 'fir_tree', solid: true,  variant: 0, desc: 'Fir tree trunk (canopy added above)' },
+        'r': { type: 'rock',     solid: true,  variant: 0, desc: 'Rock' },
+        'R': { type: 'shiny_rock', solid: true, variant: 0, desc: 'Shiny / glowing rock' },
+        'u': { type: 'tulip',    solid: false, variant: 0, desc: 'Tulip (wildflower)' },
+        'b': { type: 'rosebush', solid: true,  variant: 0, desc: 'Rosebush' },
+        'p': { type: 'bird_poop', solid: false, variant: 0, desc: 'Bird poop' },
+        'S': { type: 'grass',    solid: false, variant: 0, desc: 'Shack pad — NPC follower shacks land here', shackPad: true },
+        'F': { type: 'foundation', solid: false, variant: 0, desc: 'Building / stall foundation pad' }
+    };
+
+    // Build a floating biome island from CSV text: the grid is centered on the
+    // 100x100 engine grid and every tile outside it becomes solid void (the
+    // fall ring). 'S' chars are collected into world.shackPads (world coords).
+    function buildIslandFromCSV(csvText, biomeId, options) {
+        const opts = options || {};
+        opts.center = true;
+        opts.fillChar = 'V';
+        opts.defaultChar = 'g';
+        opts.kind = 'island';
+        const world = buildMapFromCSV(csvText, 'island', ISLAND_LEGEND, opts);
+        world.csvBiome = biomeId || null;
+        world.shackPads = [];
+        const { grid, width, height } = parseCSV(csvText);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (grid[y][x] === 'S') {
+                    world.shackPads.push({ x: x + world.csvOffsetX, y: y + world.csvOffsetY });
+                    // Give the tree canopy pass a plain grass tile to work with.
+                    world.tiles[x + world.csvOffsetX][y + world.csvOffsetY].shackPad = true;
+                }
+            }
+        }
+        // Trees authored in CSV are trunks only — add the walkable canopy tile
+        // above each one (same shape World.placeTree produces), but never over
+        // another landmark: only plain grass becomes canopy.
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const ch = grid[y][x];
+                if (ch !== 't' && ch !== 'f') continue;
+                const topY = y - 1 + world.csvOffsetY, tx = x + world.csvOffsetX;
+                if (topY < 0) continue;
+                const top = world.tiles[tx] && world.tiles[tx][topY];
+                if (top && top.type === 'grass' && !top.shackPad) {
+                    world.tiles[tx][topY] = { type: ISLAND_LEGEND[ch].type, variant: 0, isTreeTop: true, solid: false };
+                }
+            }
+        }
+        return world;
+    }
+
     // Friendly alias.
     function translateCSVToWorld(csvText, mapId, legend, options) {
         return buildMapFromCSV(csvText, mapId, legend, options);
@@ -255,6 +319,9 @@ const CSV_TILEMAP = (function () {
         getTileCounts,
         makeTile,
         buildMapFromCSV,
+        DEFAULT_LEGEND,
+        ISLAND_LEGEND,
+        buildIslandFromCSV,
         translateCSVToWorld,
         loadCSVFromFile
     };

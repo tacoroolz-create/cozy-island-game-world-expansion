@@ -211,6 +211,7 @@ let player = null;
 let world = null;            // the ACTIVE map (one of `maps`)
 let maps = {};               // id -> World instance (e.g. 'island', 'underground')
 let currentMapId = 'island'; // which map `world` currently points at
+let ISLAND_CSV_MAPS = null;  // biomeId -> loadStrings() lines for authored island CSVs
 let debugMode = false;       // dev overlay + cheats (toggle with backtick `)
 let cameraX = 0;
 let cameraY = 0;
@@ -740,7 +741,7 @@ function clearBuildingFootprint(b) {
             if (tx < 0 || tx >= CONFIG.WORLD_WIDTH || ty < 0 || ty >= CONFIG.WORLD_HEIGHT) continue;
             if (!world.tiles[tx] || !world.tiles[tx][ty]) continue;
             const t = world.tiles[tx][ty];
-            if (t.type !== 'sea' && t.type !== 'beach') {
+            if (t.type !== 'sea' && t.type !== 'beach' && t.type !== 'void') {
                 world.tiles[tx][ty] = { type: 'grass', variant: 0 };
             }
         }
@@ -873,6 +874,16 @@ function preload() {
     // Cache-busted like the script tags in index.html, so layout edits show up
     // on plain reload.
     underworldCSVLines = loadStrings('underworld.csv?v=' + Date.now());
+    // Load the six authored biome-island CSVs (consumed by src/islands.js on
+    // each fall; a missing/broken file just falls back to procedural islands).
+    ISLAND_CSV_MAPS = {
+        meadow:      loadStrings('assets/maps/meadow.csv?v=' + Date.now()),
+        woods:       loadStrings('assets/maps/woods.csv?v=' + Date.now()),
+        town:        loadStrings('assets/maps/town.csv?v=' + Date.now()),
+        city:        loadStrings('assets/maps/city.csv?v=' + Date.now()),
+        deep_woods:  loadStrings('assets/maps/deep_woods.csv?v=' + Date.now()),
+        mountain:    loadStrings('assets/maps/mountain.csv?v=' + Date.now())
+    };
 }
 
 function setup() {
