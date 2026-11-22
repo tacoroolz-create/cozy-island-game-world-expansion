@@ -398,6 +398,49 @@ function drawIslandVoidBackdrop() {
     );
     rect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
     if (typeof drawSkyClouds === 'function' && deep < 0.5) drawSkyClouds(0);
+    // Batch 3 ambience: past the authored six, a star-dragon swims in the void
+    // sky. A handful of fixed bright pixels arranged like a serpentine dragon
+    // (head, curling body, tail) — pure const data, no art file, and drawn
+    // with a slow twinkle so it reads as living sky. Screen-space pattern,
+    // deterministic — the generation paths never touch Math.random.
+    if (islandDepth() >= 8) drawDragonConstellation();
+}
+
+// Screen-space star pixels (canvas coords on the 320x192 viewport): the head
+// at upper-left, the body undulating right, the tail tapering off. ponytail:
+// hand-plotted constellation — reshape freely when dedicated art lands.
+const DRAGON_CONSTELLATION = [
+    [52, 38], [60, 34], [66, 39],          // head + snout
+    [74, 46], [84, 52], [94, 50],          // neck dive
+    [104, 44], [114, 40],                  // crest of the wave
+    [124, 48], [134, 58], [144, 62],       // long belly
+    [154, 60], [164, 54], [174, 50],       // second crest
+    [186, 56], [196, 66], [206, 74],       // tail sweep down
+    [214, 80], [222, 86]                   // tail tip
+];
+const DRAGON_STAR_BRIGHT = [255, 250, 235];
+function drawDragonConstellation() {
+    noStroke();
+    for (let i = 0; i < DRAGON_CONSTELLATION.length; i++) {
+        const [sx, sy] = DRAGON_CONSTELLATION[i];
+        // Slow per-star twinkle, phase from index — deterministic, no random.
+        const tw = 0.55 + 0.45 * Math.sin(millis() / 900 + i * 0.9);
+        fill(DRAGON_STAR_BRIGHT[0], DRAGON_STAR_BRIGHT[1], DRAGON_STAR_BRIGHT[2], 255 * tw);
+        const s = i === 0 ? 3 : 2;   // the head star is brightest
+        rect(sx, sy, s, s);
+    }
+    // Faint connective thread so the serpentine shape reads at a glance.
+    fill(255, 250, 235, 28);
+    for (let i = 0; i < DRAGON_CONSTELLATION.length - 1; i++) {
+        const [ax, ay] = DRAGON_CONSTELLATION[i];
+        const [bx, by] = DRAGON_CONSTELLATION[i + 1];
+        const steps = Math.max(2, Math.floor(Math.hypot(bx - ax, by - ay) / 3));
+        for (let s = 0; s < steps; s++) {
+            const px = ax + (bx - ax) * s / steps;
+            const py = ay + (by - ay) * s / steps;
+            rect(px, py, 1, 1);
+        }
+    }
 }
 
 // ===== PROMPT + FADE OVERLAY =====

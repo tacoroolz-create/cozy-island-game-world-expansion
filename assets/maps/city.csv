@@ -19,10 +19,10 @@ g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,r,g,g,
 g,t,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,F,F,F,F,F,F,F,g,g,g
 g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,F,F,F,F,F,F,F,g,g,g
 t,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,d,s,d,s,d,s,d,s,d,s,s,s,g,t,g,g,g,g,g,g,g,s,s,g,F,F,F,F,F,F,F,g,g,g
-g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,r,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
-g,g,g,g,g,g,g,g,g,g,g,g,s,s,r,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
-g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,R,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
-g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,p,s,s,g,r,g,g,g,g,g,g,g,g,g
+g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,r,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,w,w,w,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
+g,g,g,g,g,g,g,g,g,g,g,g,s,s,r,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,w,w,w,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
+g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,w,w,w,g,R,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
+g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,y,g,g,g,g,p,s,s,g,r,g,g,g,g,g,g,g,g,g
 g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
 g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,l,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g
 g,g,g,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,s,s,s,s,s,s,s,s,s,s,s,s,s,s,g,g,g,g,g,g,g,g,g,s,s,g,g,g,g,g,g,g,g,g,g,g

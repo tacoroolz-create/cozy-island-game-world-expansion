@@ -174,6 +174,72 @@ for (const b of ISLAND_BIOMES) {
     }
 }
 
+// ===== Batch 3 additions: keepsake landmarks, overlook, farewell bench =====
+// Each biome CSV carries exactly one keepsake landmark ('m'/'x'/'z'/'y'/'v'/'o'),
+// the mountain summit has the overlook bench 'A' + plaque 'q', and the meadow
+// has the farewell bench 'B'. Every landmark is solid, approachable from at
+// least one walkable neighbor, and keepsake ids are unique across the world.
+const LANDMARK_REQ = { meadow: ['m', 'B'], woods: ['x'], town: ['z'], city: ['y'], deep_woods: ['v'], mountain: ['A', 'q', 'o'] };
+const WALKABLE = new Set(['g', 's', 'd', 'F', 'u', 'p', 'D']);
+const seenKeepsakes = {};
+for (const b of ISLAND_BIOMES) {
+    const grid = CSV_MAPS[b.id];
+    if (!grid) continue;
+    const want = LANDMARK_REQ[b.id] || [];
+    const found = {};
+    for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+            const ch = grid[y][x];
+            if (!want.includes(ch)) continue;
+            found[ch] = (found[ch] || 0) + 1;
+            const def = ISLAND_LEGEND[ch];
+            ok(def && def.solid === true, b.id + " landmark '" + ch + "' is solid in the legend");
+            if (def.type === 'keepsake') {
+                ok(def.keepsakeId && !seenKeepsakes[def.keepsakeId], 'keepsake id ' + def.keepsakeId + ' appears exactly once');
+                seenKeepsakes[def.keepsakeId] = b.id;
+            } else {
+                ok(typeof def.interactText === 'string' && def.interactText.length > 10,
+                   b.id + " landmark '" + ch + "' carries interact text");
+            }
+            // Approachable: at least one orthogonal neighbor is walkable.
+            const nbs = [y > 0 ? grid[y - 1][x] : null, y + 1 < grid.length ? grid[y + 1][x] : null,
+                         x > 0 ? grid[y][x - 1] : null, x + 1 < grid[y].length ? grid[y][x + 1] : null];
+            ok(nbs.some(n => n && WALKABLE.has(n)), b.id + " landmark '" + ch + "' at " + x + ',' + y + ' has a walkable neighbor');
+        }
+    }
+    for (const ch of want) {
+        ok(found[ch] === 1, b.id + ' has exactly one ' + ch + ' landmark (got ' + (found[ch] || 0) + ')');
+    }
+}
+ok(Object.keys(seenKeepsakes).length === 6, 'all six biome keepsakes are placed (got ' + Object.keys(seenKeepsakes).length + ')');
+
+// expansions.js: registry + verbatim pickup copy + facade wiring checks.
+const expSrc = fs.readFileSync('src/expansions.js', 'utf8');
+ok(expSrc.includes("pickup: 'It never wilts. Down here, nothing has to.'"), 'Meadow Petal copy verbatim');
+ok(expSrc.includes("pickup: 'Smells like the deep of the woods. Quiet in a smell.'"), 'Fir Sprig copy verbatim');
+ok(expSrc.includes("pickup: 'Someone pressed this into the fountain long before you fell.'"), 'Plaza Coin copy verbatim');
+ok(expSrc.includes("pickup: 'A chip of sidewalk. Still warm, like it remembers footsteps.'"), 'City Tile copy verbatim');
+ok(expSrc.includes("pickup: 'It hums, very softly, in the key of falling.'"), 'Shrine Stone copy verbatim');
+ok(expSrc.includes("pickup: 'The highest thing on the lowest island.'"), 'Summit Pebble copy verbatim');
+ok(expSrc.includes("const SHIP_TEXT = \"The ship rocks gently, going nowhere. It's waiting for the dream to be ready.\";"), 'ship copy verbatim');
+ok(expSrc.includes("const SEA_STAIRS_TEXT = 'Stairs curl down into dark water. You can hear the sea breathing. Not yet.';"), 'sea-stairs copy verbatim');
+// The facade tiers are registered in BUILDING_TIERS (drive interior size).
+for (const t of ['facade_cottage', 'facade_shop', 'facade_tall_house']) {
+    ok(new RegExp(t + ':\\s*\\{').test(gameSrc), t + ' has a BUILDING_TIERS entry');
+}
+ok(/furnishFacadeInterior === 'function'/.test(gameSrc), 'Building.initInterior wires furnishFacadeInterior');
+ok(/tryEnterFacade === 'function'/.test(gameSrc), "Enter chain wires tryEnterFacade");
+ok(/checkFacadeDoorUnderfoot === 'function'/.test(gameSrc), 'movement wires checkFacadeDoorUnderfoot');
+// Run expansions.js in a fresh stub context to catch load-time errors and
+// verify the ITEMS registration round-trips.
+{
+    const expCtx = { ITEMS: {}, console };
+    vm.createContext(expCtx);
+    vm.runInContext(expSrc, expCtx);
+    const reg = vm.runInContext('({ keepsakes: Object.keys(ITEMS).length, registry: KEEPSAKES })', expCtx);
+    ok(reg.keepsakes === 6, 'expansions.js registers all 6 keepsake ITEMS (got ' + reg.keepsakes + ')');
+    ok(Object.keys(reg.registry).length === 6, 'KEEPSAKES registry complete');
+}
 
 // ===== Authored island builds (headless, via the translator) =====
 for (const b of ISLAND_BIOMES) {

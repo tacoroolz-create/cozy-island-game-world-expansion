@@ -208,6 +208,10 @@ const SPRITE_DEFS = {
     'tiles.cliff_face':       'assets/tiles/cliff_face.png',
     'tiles.scree':            'assets/tiles/scree.png',
     'tiles.signpost':         'assets/tiles/signpost.png',
+    // Batch 3 (expansion features): dock ship, overlook bench, stone plaque.
+    'tiles.ship':             'assets/tiles/ship.png',
+    'tiles.bench':            'assets/tiles/bench.png',
+    'tiles.plaque':           'assets/tiles/plaque.png',
     'ui.title':               'assets/ui/title.png',
     'ui.menu_bg':             'assets/ui/menu_bg.png',
     'ui.tab_selected':        'assets/ui/tab_selected.png',
@@ -263,7 +267,10 @@ let heldLostMailLetter = null; // the Lost Mail Day letter currently in the play
 const TILE_SOLID = new Set(['void', 'sea', 'water', 'pond_water', 'tree', 'fir_tree', 'banana_tree', 'palm_tree', 'rock', 'shiny_rock', 'rosebush', 'toast_target', 'ug_wall', 'ug_pit',
     // Batch 2: static blockers (lamp posts, facade shells, fences, cliffs).
     'lamp_post', 'facade_cottage', 'facade_shop', 'facade_tall_house',
-    'wood_fence', 'hedge', 'cliff_face', 'scree', 'signpost']);
+    'wood_fence', 'hedge', 'cliff_face', 'scree', 'signpost',
+    // Batch 3: expansion landmarks (ship, benches, plaque, keepsakes,
+    // sea-stairs hatch) — all solid scenery/interactables.
+    'ship', 'bench', 'plaque', 'keepsake', 'beach_stairs']);
 
 // Tiles whose sprite is wider/taller than a single tile. These are drawn in a
 // deferred pass after all base terrain so the next column's base can't clip the
@@ -553,7 +560,15 @@ const BUILDING_TIERS = {
     ug_bottomless_pit:  { spriteKey: 'sprites.ug_bottomless_pit',  name: 'A Bottomless Pit',    color: '#111111', w: 4, h: 4, doorWidth: 2, interiorW: 7, interiorFloorRows: 4 },  // 64x64 sprite
     // Player-built second shelter from Castle of Sticks Day. Placeholder
     // colored-block fallback until twig tower art lands.
-    twig_tower:         { spriteKey: 'sprites.twig_tower',         name: 'Twig Tower',          color: '#9A7B4F', w: 4, h: 5, doorWidth: 1, interiorW: 5, interiorFloorRows: 3 }
+    twig_tower:         { spriteKey: 'sprites.twig_tower',         name: 'Twig Tower',          color: '#9A7B4F', w: 4, h: 5, doorWidth: 1, interiorW: 5, interiorFloorRows: 3 },
+    // --- Batch 3: enterable facade shells (island biome towns) ---
+    // The batch-2 shells get 1x1 footprints and cozy shared interiors (see
+    // furnishFacadeInterior in expansions.js). They never draw from this tier —
+    // drawTile's facade case handles the exterior — but the tier drives
+    // interior dimensions, the door tile and the display name.
+    facade_cottage:     { spriteKey: 'tiles.facade_cottage',     name: 'Cottage',     w: 1, h: 1, doorWidth: 1, interiorW: 6, interiorFloorRows: 4 },
+    facade_shop:        { spriteKey: 'tiles.facade_shop',        name: 'Village Shop', w: 1, h: 1, doorWidth: 1, interiorW: 7, interiorFloorRows: 4 },
+    facade_tall_house:  { spriteKey: 'tiles.facade_tall_house',  name: 'Tall House',  w: 1, h: 1, doorWidth: 1, interiorW: 5, interiorFloorRows: 5 }
 };
 
 // The eight underground building identities (see underWorldBldgs.rtf).
@@ -617,6 +632,10 @@ class Building {
                     this.interiorTiles[x][y] = { type: 'grass', variant: floor(Math.random() * 3) };
                 }
             }
+        }
+        // Batch 3: the facade shells get cozy shared interiors (expansions.js).
+        if (typeof furnishFacadeInterior === 'function') {
+            furnishFacadeInterior(this);
         }
         // Stimmy Tim's gets its full cafe fit-out (see cafe.js).
         if (this.type === 'ug_stimmy_tims' && typeof furnishStimmyCafe === 'function') {
@@ -1183,6 +1202,8 @@ function handleMovement() {
         lastMoveTime = now;
         // Stepping onto a portal tile carries the player to another map.
         checkPortalUnderfoot();
+        // Stepping onto a facade's door flagstone walks you inside (batch 3).
+        if (typeof checkFacadeDoorUnderfoot === 'function') checkFacadeDoorUnderfoot();
     }
 }
 
@@ -5668,6 +5689,9 @@ function keyPressed() {
             if (tryEnterBuilding()) return false;
             // Check if facing the tunnel to/from the underground city
             if (tryEnterTunnel()) return false;
+            // Batch 3: facades (E to go inside), ship/benches/plaque/keepsakes
+            if (typeof tryEnterFacade === 'function' && tryEnterFacade()) return false;
+            if (typeof tryInteractIslandTile === 'function' && tryInteractIslandTile()) return false;
             // Check if facing an NPC - talk to them
             if (typeof npcAtFacing === 'function') {
                 const npc = npcAtFacing();
@@ -7072,6 +7096,8 @@ function spawnPlayerShack() {
     const b = new Building('shack', 52, 47, 'player');
     clearBuildingFootprint(b);
     buildings.push(b);
+    // Batch 3: the sea-stairs hatch beside the shack (decorative stub).
+    if (typeof placeBeachShackStairs === 'function') placeBeachShackStairs(world, b);
 }
 
 // Carve a couple of dirt paths from the player's shack door out to nearby
@@ -8108,6 +8134,8 @@ class World {
 
         // Place the arrivals dock on the west beach.
         this.placeDock(ISLAND_DOCK_ORIGIN.x, ISLAND_DOCK_ORIGIN.y);
+        // Batch 3: moor the waiting ship alongside the pier (decorative stub).
+        if (typeof placeDockShip === 'function') placeDockShip(this);
 
         // Seed the world with an initial set of bird poop.
         spawnBirdPoop(3 + floor(random(3)));
@@ -9174,6 +9202,92 @@ class World {
                     fill('#8a5a34');
                     rect(screenX + 3, screenY + 3, 10, 5);
                 }
+                break;
+            }
+            // ===== Batch 3: expansion landmarks =====
+            case 'ship': {
+                // Decorative ship moored alongside the pier. The 48x32 sprite
+                // covers a 3x2 tile block; only the NW tile (shipOrigin) draws
+                // it, the rest just redraw the sea the block sits in.
+                const ship = SPRITES['tiles.ship'];
+                if (tile.shipOrigin) {
+                    if (ship) {
+                        image(ship, screenX, screenY, TS * 3, TS * 2);
+                    } else {
+                        // Fallback: dark hull with a little mast, 3x2 tiles.
+                        fill('#5b4636');
+                        rect(screenX + TS, screenY, TS * 2, TS * 2);
+                        fill('#efe3c4');
+                        rect(screenX + TS, screenY + TS, TS * 2, 4);
+                        fill('#8a5a34');
+                        rect(screenX + TS * 2, screenY - TS, 2, TS);
+                        fill('#efe3c4');
+                        triangle(screenX + TS * 2 + 2, screenY - TS, screenX + TS * 2 + 2, screenY - 2, screenX + TS * 3 - 2, screenY - 2);
+                    }
+                } else {
+                    fill('#3D6E8F');   // calm sea the hull sits in
+                    rect(screenX, screenY, TS, TS);
+                }
+                break;
+            }
+            case 'bench': {
+                // Sit-a-while bench (farewell / overlook variants carry their
+                // text on the tile itself).
+                drawBase('grass');
+                const bench = SPRITES['tiles.bench'];
+                if (bench) {
+                    image(bench, screenX, screenY, TS, TS);
+                } else {
+                    fill('#9C6B3F');
+                    rect(screenX + 1, screenY + 4, TS - 2, 6);
+                    rect(screenX + 1, screenY + 10, TS - 2, 2);
+                    fill('#7A5430');
+                    rect(screenX + 2, screenY + 12, 2, 3);
+                    rect(screenX + TS - 4, screenY + 12, 2, 3);
+                }
+                break;
+            }
+            case 'plaque': {
+                // Stone plaque on a grass base.
+                drawBase('grass');
+                const plaque = SPRITES['tiles.plaque'];
+                if (plaque) {
+                    image(plaque, screenX, screenY, TS, TS);
+                } else {
+                    fill('#9E9E9E');
+                    rect(screenX + 2, screenY + 5, TS - 4, TS - 8, 2);
+                    fill('#6E6E6E');
+                    rect(screenX + 4, screenY + 8, TS - 8, 1);
+                    rect(screenX + 4, screenY + 10, TS - 8, 1);
+                }
+                break;
+            }
+            case 'keepsake': {
+                // A small keepsake glinting on the grass — take it with E.
+                drawBase('grass');
+                noStroke();
+                const tw = 140 + Math.floor(Math.sin(millis() / 300 + (x + y) * 0.7) * 90);
+                fill(255, 250, 210, tw);
+                rect(screenX + 6, screenY + 7, 4, 4);
+                fill(255, 255, 255, tw);
+                rect(screenX + 7, screenY + 6, 2, 2);
+                rect(screenX + 7, screenY + 10, 2, 2);
+                rect(screenX + 5, screenY + 8, 2, 2);
+                rect(screenX + 9, screenY + 8, 2, 2);
+                break;
+            }
+            case 'beach_stairs': {
+                // The sea-stairs hatch beside the shack: a little dark doorway.
+                drawBase('grass');
+                noStroke();
+                fill('#4a3a28');
+                rect(screenX + 3, screenY + 4, TS - 6, TS - 8, 2);
+                fill('#2b2f3a');
+                rect(screenX + 5, screenY + 6, TS - 10, TS - 12);
+                fill('#12141c');
+                rect(screenX + 5, screenY + 9, TS - 10, 5);
+                fill('#8a8578');
+                rect(screenX + 2, screenY + TS - 4, TS - 4, 2);
                 break;
             }
         }

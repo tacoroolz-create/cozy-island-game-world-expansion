@@ -239,7 +239,19 @@ const CSV_TILEMAP = (function () {
         'h': { type: 'hedge',    solid: true,  variant: 0, desc: 'Hedge (dense leafy wall)' },
         'M': { type: 'cliff_face', solid: true, variant: 0, desc: 'Cliff face (solid stratified rock wall)' },
         'c': { type: 'scree',    solid: true,  variant: 0, desc: 'Scree (solid loose-rubble slope)' },
-        'n': { type: 'signpost', solid: true,  variant: 0, desc: 'Wooden signpost (solid)' }
+        'n': { type: 'signpost', solid: true,  variant: 0, desc: 'Wooden signpost (solid)' },
+        // Batch 3 (expansion features). Landmark tiles carry their interact
+        // copy on the tile (interactText); keepsakes carry a keepsakeId that
+        // maps to KEEPSAKES in src/expansions.js and a one-time pickup.
+        'B': { type: 'bench', solid: true,  variant: 0, interactText: 'Sit a while. The island will remember you.', desc: 'Farewell bench (meadow) — interact to sit a while' },
+        'A': { type: 'bench', solid: true,  variant: 0, interactText: "You sit a while. Far below, the island you came from is just a speck of green. They're all still up there. You just can't go back.", desc: 'The Overlook bench (mountain summit) — interact to sit and look' },
+        'q': { type: 'plaque', solid: true, variant: 0, interactText: 'The Overlook. Every depth leaves its sky behind.', desc: 'Stone plaque (mountain summit) — interact to read' },
+        'm': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'meadow_petal',  desc: 'Meadow Petal landmark (dock of the pond)' },
+        'x': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'fir_sprig',     desc: 'Fir Sprig landmark (fir grove)' },
+        'z': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'plaza_coin',    desc: 'Plaza Coin landmark (town fountain)' },
+        'y': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'city_tile',    desc: 'City Tile landmark (plaza reflecting pool)' },
+        'v': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'shrine_stone', desc: 'Shrine Stone landmark (deep-woods shrine)' },
+        'o': { type: 'keepsake', solid: true, variant: 0, keepsakeId: 'summit_pebble', desc: 'Summit Pebble landmark (mountain summit)' }
     };
 
     // Build a floating biome island from CSV text: the grid is centered on the

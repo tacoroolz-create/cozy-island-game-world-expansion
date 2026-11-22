@@ -468,7 +468,9 @@ function serializeGame() {
         hogPoopTiles: hogPoopTiles.slice(),
         gardenPlots: (typeof gardenPlots !== 'undefined') ? gardenPlots : {},
         timeCapsuleBox: (typeof timeCapsuleBox !== 'undefined') ? timeCapsuleBox : null,
-        familiar: (typeof familiar !== 'undefined') ? familiar : null
+        familiar: (typeof familiar !== 'undefined') ? familiar : null,
+        // Batch 3: which biome keepsakes the player has already taken.
+        keepsakesFound: (typeof keepsakesFound !== 'undefined') ? keepsakesFound : {}
     };
     // Persist any non-island maps (e.g. the underground city) so their layout
     // and placed buildings are stable across save/load. Entities were parked at
@@ -543,6 +545,8 @@ function deserializeGame(data) {
     // Backstop: if a save is already past the reveal day, make sure the tunnel exists.
     if (world.day >= TUNNEL_REVEAL_DAY && typeof revealIslandTunnel === 'function') revealIslandTunnel();
     magicFlags = Object.assign({ mubabaQuest: false, mubabaMet: false, usurperBanished: false, domStep: 0 }, data.magicFlags || {});
+    // Batch 3: restore which keepsakes were already taken (old saves default clean).
+    if (typeof keepsakesDeserialize === 'function') keepsakesDeserialize(data.keepsakesFound);
     if (typeof almanacDiscovered !== 'undefined') almanacDiscovered = data.almanacDiscovered || {};
     if (typeof questLoad === 'function') questLoad(data.quests); // defaults cover old saves
     if (typeof clothLoad === 'function') clothLoad(data.cloth);
