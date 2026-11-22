@@ -196,6 +196,18 @@ const SPRITE_DEFS = {
     'tiles.tunnel_surface':   'assets/tiles/tunnel_surface.png',
     'tiles.tunnel_ug':        'assets/tiles/tunnel_ug.png',
     'tiles.dock':             'assets/tiles/dock.png',
+    // Batch 2 (aesthetic excellence pass): lamp posts, building facades,
+    // fences/hedges, mountain cliffs. Missing files null out via the
+    // three-arg loadImage in loadSpriteURL — never hang preload.
+    'tiles.lamp_post':        'assets/tiles/lamp_post.png',
+    'tiles.facade_cottage':   'assets/tiles/facade_cottage.png',
+    'tiles.facade_shop':      'assets/tiles/facade_shop.png',
+    'tiles.facade_tall_house': 'assets/tiles/facade_tall_house.png',
+    'tiles.wood_fence':       'assets/tiles/wood_fence.png',
+    'tiles.hedge':            'assets/tiles/hedge.png',
+    'tiles.cliff_face':       'assets/tiles/cliff_face.png',
+    'tiles.scree':            'assets/tiles/scree.png',
+    'tiles.signpost':         'assets/tiles/signpost.png',
     'ui.title':               'assets/ui/title.png',
     'ui.menu_bg':             'assets/ui/menu_bg.png',
     'ui.tab_selected':        'assets/ui/tab_selected.png',
@@ -248,7 +260,10 @@ let yogatron = null; // temporary holiday visitor for Ab Appreciation Day
 let islandGod = null; // static giant turtle visitor for Day of the Island God
 let lostMail = null; // { day, letters: [{x,y,npcId,address,isPresent,delivered}], allDeliveredNotified }
 let heldLostMailLetter = null; // the Lost Mail Day letter currently in the player's hand, or null
-const TILE_SOLID = new Set(['void', 'sea', 'water', 'pond_water', 'tree', 'fir_tree', 'banana_tree', 'palm_tree', 'rock', 'shiny_rock', 'rosebush', 'toast_target', 'ug_wall', 'ug_pit']);
+const TILE_SOLID = new Set(['void', 'sea', 'water', 'pond_water', 'tree', 'fir_tree', 'banana_tree', 'palm_tree', 'rock', 'shiny_rock', 'rosebush', 'toast_target', 'ug_wall', 'ug_pit',
+    // Batch 2: static blockers (lamp posts, facade shells, fences, cliffs).
+    'lamp_post', 'facade_cottage', 'facade_shop', 'facade_tall_house',
+    'wood_fence', 'hedge', 'cliff_face', 'scree', 'signpost']);
 
 // Tiles whose sprite is wider/taller than a single tile. These are drawn in a
 // deferred pass after all base terrain so the next column's base can't clip the
@@ -9008,6 +9023,156 @@ class World {
                     ellipse(screenX + 8, screenY + 8, 6, 6);
                     fill('#E53935');
                     ellipse(screenX + 8, screenY + 8, 3, 3);
+                }
+                break;
+            }
+            // ===== Batch 2: aesthetic excellence pass =====
+            case 'grass_variant': {
+                // Deterministically-scattered decorative grass (grass_variant
+                // tile variant picks the sprite: 0 cool, 1 stars, 2 yeesh).
+                // Blends into neighbouring beach just like plain grass.
+                const gvKeys = ['tiles.grass_cool', 'tiles.grass_stars', 'tiles.grass_yeesh'];
+                const gv = SPRITES[gvKeys[tile.variant || 0]] || SPRITES['tiles.grass'];
+                if (gv) {
+                    image(gv, screenX, screenY, TS, TS);
+                } else {
+                    fill(['#6FA8C0', '#8BC34A', '#7A9E5A'][tile.variant || 0]);
+                    rect(screenX, screenY, TS, TS);
+                }
+                drawBeachEdgeOverlay(x, y, screenX, screenY, TS);
+                break;
+            }
+            case 'lamp_post': {
+                // 16x32 two-tall prop, tree pattern: bottom tile = solid post,
+                // top tile = passable lantern (isTreeTop). DrawBase only for
+                // the bottom half; each tile draws its own half of the sprite.
+                if (!tile.isTreeTop) drawBase('grass');
+                const lamp = SPRITES['tiles.lamp_post'];
+                if (lamp) {
+                    image(lamp, screenX, screenY, TS, TS, 0, tile.isTreeTop ? 0 : TS, TS, TS);
+                } else if (tile.isTreeTop) {
+                    fill('#ffd98a'); ellipse(screenX + 8, screenY + 8, 8, 8);
+                    fill('#3a322a'); ellipse(screenX + 8, screenY + 8, 9, 9);
+                } else {
+                    fill('#4a4038'); rect(screenX + 7, screenY, 2, TS);
+                    fill('#8a8578'); rect(screenX + 4, screenY + 10, 8, 6);
+                }
+                break;
+            }
+            case 'facade_cottage':
+            case 'facade_shop':
+            case 'facade_tall_house': {
+                // Decorative building shell anchored on a foundation pad: the
+                // 16x32 facade sprite's bottom half sits on this (solid) tile,
+                // its top half overhangs the tile above — which is drawn first
+                // because drawTile ascends rows, so the facade is never clipped.
+                // Flagstone base = the foundation pad it stands on.
+                fill('#6E6358');
+                rect(screenX, screenY, TS, TS);
+                noFill();
+                stroke('#564C43');
+                strokeWeight(1);
+                rect(screenX + 0.5, screenY + 0.5, TS - 1, TS - 1);
+                noStroke();
+                const facade = SPRITES['tiles.' + tile.type];
+                if (facade) {
+                    image(facade, screenX, screenY - TS, TS, TS * 2);
+                } else if (tile.type === 'facade_cottage') {
+                    fill('#a5563c'); triangle(screenX, screenY - 4, screenX + 8, screenY - TS + 4, screenX + TS, screenY - 4);
+                    fill('#efe3c4'); rect(screenX, screenY - 4, TS, TS + 4);
+                    fill('#5d3f26'); rect(screenX + 6, screenY + 5, 5, 11);
+                } else if (tile.type === 'facade_shop') {
+                    fill('#5c5a66'); rect(screenX, screenY - TS + 6, TS, 8);
+                    fill('#d86a4f'); rect(screenX, screenY - TS + 14, TS, 5);
+                    fill('#d9cfae'); rect(screenX, screenY - 4, TS, TS + 4);
+                    fill('#4a3320'); rect(screenX + 11, screenY + 3, 3, 13);
+                } else {
+                    fill('#4f5a68'); triangle(screenX, screenY - 8, screenX + 8, screenY - TS, screenX + TS, screenY - 8);
+                    fill('#b9a887'); rect(screenX, screenY - 8, TS, TS + 8);
+                    fill('#8fb6cf'); rect(screenX + 3, screenY - 4, 4, 4); rect(screenX + 9, screenY - 4, 4, 4);
+                }
+                break;
+            }
+            case 'door': {
+                // Walkable door marker on a foundation pad (entry point for a
+                // future interactive shell).
+                fill('#6E6358');
+                rect(screenX, screenY, TS, TS);
+                fill('#3a2c1c');
+                rect(screenX + 4, screenY + 2, 8, 14);
+                fill('#c9a86a');
+                rect(screenX + 9, screenY + 9, 1, 2);
+                break;
+            }
+            case 'wood_fence': {
+                drawBase('grass');
+                const fence = SPRITES['tiles.wood_fence'];
+                if (fence) {
+                    image(fence, screenX, screenY, TS, TS);
+                } else {
+                    fill('#8a5a34');
+                    rect(screenX, screenY + 6, TS, 2);
+                    rect(screenX, screenY + 11, TS, 2);
+                    rect(screenX + 2, screenY + 3, 3, 13);
+                    rect(screenX + 11, screenY + 3, 3, 13);
+                }
+                break;
+            }
+            case 'hedge': {
+                drawBase('grass');
+                const hedge = SPRITES['tiles.hedge'];
+                if (hedge) {
+                    image(hedge, screenX, screenY, TS, TS);
+                } else {
+                    fill('#3f6d33');
+                    rect(screenX + 1, screenY + 3, TS - 2, TS - 3);
+                    fill('#558a41');
+                    rect(screenX + 1, screenY + 3, TS - 2, 2);
+                }
+                break;
+            }
+            case 'cliff_face': {
+                // Solid rock wall — opaque, replaces the ground beneath.
+                const cliff = SPRITES['tiles.cliff_face'];
+                if (cliff) {
+                    image(cliff, screenX, screenY, TS, TS);
+                } else {
+                    fill('#5a5148');
+                    rect(screenX, screenY, TS, TS);
+                    fill('#443d36');
+                    rect(screenX, screenY + 5, TS, 1);
+                    rect(screenX, screenY + 10, TS, 1);
+                    fill('#6e655a');
+                    rect(screenX, screenY, TS, 1);
+                }
+                break;
+            }
+            case 'scree': {
+                // Loose rubble — solid but visually open.
+                const scree = SPRITES['tiles.scree'];
+                if (scree) {
+                    image(scree, screenX, screenY, TS, TS);
+                } else {
+                    fill('#9a8f7d');
+                    rect(screenX, screenY, TS, TS);
+                    fill('#b3a996');
+                    rect(screenX + 2, screenY + 3, 2, 1);
+                    rect(screenX + 8, screenY + 6, 2, 1);
+                    rect(screenX + 11, screenY + 12, 2, 1);
+                }
+                break;
+            }
+            case 'signpost': {
+                // Solid wooden signpost on grass.
+                drawBase('grass');
+                const sign = SPRITES['tiles.signpost'];
+                if (sign) {
+                    image(sign, screenX, screenY, TS, TS);
+                } else {
+                    fill('#6b4426');
+                    rect(screenX + 7, screenY + 6, 2, 10);
+                    fill('#8a5a34');
+                    rect(screenX + 3, screenY + 3, 10, 5);
                 }
                 break;
             }

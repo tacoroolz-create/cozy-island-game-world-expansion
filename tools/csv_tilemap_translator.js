@@ -225,7 +225,21 @@ const CSV_TILEMAP = (function () {
         'b': { type: 'rosebush', solid: true,  variant: 0, desc: 'Rosebush' },
         'p': { type: 'bird_poop', solid: false, variant: 0, desc: 'Bird poop' },
         'S': { type: 'grass',    solid: false, variant: 0, desc: 'Shack pad — NPC follower shacks land here', shackPad: true },
-        'F': { type: 'foundation', solid: false, variant: 0, desc: 'Building / stall foundation pad' }
+        'F': { type: 'foundation', solid: false, variant: 0, desc: 'Building / stall foundation pad' },
+        // Batch 2 (aesthetic excellence pass). Lamps follow the tree two-tall
+        // pattern (solid post, passable lantern top added above); facades are
+        // decorative shells anchored on the south half of an F pad; doors mark
+        // the walkable entry on the pad's edge.
+        'l': { type: 'lamp_post', solid: true,  variant: 0, desc: 'Lamp post (stone base, warm lantern top — solid trunk, passable lantern tile above)' },
+        'C': { type: 'facade_cottage', solid: true, variant: 0, desc: 'Cottage facade shell (anchor tile; sprite overhangs the tile above, stands on an F pad)' },
+        'K': { type: 'facade_shop', solid: true, variant: 0, desc: 'Shop facade shell (anchor tile on an F pad)' },
+        'H': { type: 'facade_tall_house', solid: true, variant: 0, desc: 'Tall house facade shell (anchor tile on an F pad)' },
+        'D': { type: 'door',     solid: false, variant: 0, desc: 'Door marker — walkable flagstone entry on a facade pad' },
+        'j': { type: 'wood_fence', solid: true, variant: 0, desc: 'Wood fence' },
+        'h': { type: 'hedge',    solid: true,  variant: 0, desc: 'Hedge (dense leafy wall)' },
+        'M': { type: 'cliff_face', solid: true, variant: 0, desc: 'Cliff face (solid stratified rock wall)' },
+        'c': { type: 'scree',    solid: true,  variant: 0, desc: 'Scree (solid loose-rubble slope)' },
+        'n': { type: 'signpost', solid: true,  variant: 0, desc: 'Wooden signpost (solid)' }
     };
 
     // Build a floating biome island from CSV text: the grid is centered on the
@@ -256,12 +270,18 @@ const CSV_TILEMAP = (function () {
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const ch = grid[y][x];
-                if (ch !== 't' && ch !== 'f') continue;
+                if (ch !== 't' && ch !== 'f' && ch !== 'l') continue;
                 const topY = y - 1 + world.csvOffsetY, tx = x + world.csvOffsetX;
                 if (topY < 0) continue;
                 const top = world.tiles[tx] && world.tiles[tx][topY];
                 if (top && top.type === 'grass' && !top.shackPad) {
-                    world.tiles[tx][topY] = { type: ISLAND_LEGEND[ch].type, variant: 0, isTreeTop: true, solid: false };
+                    if (ch === 'l') {
+                        // Lamp posts get a passable lantern tile above their
+                        // solid post (same two-tall pattern as trees).
+                        world.tiles[tx][topY] = { type: 'lamp_post', variant: 0, isTreeTop: true, solid: false };
+                    } else {
+                        world.tiles[tx][topY] = { type: ISLAND_LEGEND[ch].type, variant: 0, isTreeTop: true, solid: false };
+                    }
                 }
             }
         }

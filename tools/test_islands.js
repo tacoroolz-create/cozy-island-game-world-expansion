@@ -142,6 +142,39 @@ for (const b of ISLAND_BIOMES) {
 }
 ok(Object.keys(CSV_MAPS).length === ISLAND_BIOMES.length, 'all six authored CSVs loaded');
 
+// ===== Batch 2 additions =====
+// (1) Lamp posts ('l') must have plain grass above them — buildIslandFromCSV
+//     adds the passable lantern tile (lamp_post isTreeTop) only over grass.
+// (2) Every facade anchor (C/K/H) needs a walkable door marker 'D' directly
+//     below it on the pad, and town must showcase all three facade kinds.
+// (3) Pad footprint invariant is checked generically below (it already covers
+//     the revised CSVs, including the rebuilt mountain).
+for (const b of ISLAND_BIOMES) {
+    const grid = CSV_MAPS[b.id];
+    if (!grid) continue;
+    let lamps = 0, badLamp = 0, facades = {};
+    for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+            const ch = grid[y][x];
+            if (ch === 'l') {
+                lamps++;
+                if (y === 0 || grid[y - 1][x] !== 'g') badLamp++;
+            }
+            if (ch === 'C' || ch === 'K' || ch === 'H') {
+                facades[ch] = (facades[ch] || 0) + 1;
+                const below = (y + 1 < grid.length) ? grid[y + 1][x] : null;
+                ok(below === 'D', b.id + ' facade ' + ch + ' at ' + x + ',' + y + ' has a D door below');
+            }
+        }
+    }
+    ok(badLamp === 0, b.id + ' all ' + lamps + ' lamp posts have grass above (lantern tile)');
+    if (b.id === 'town') {
+        ok(facades.C > 0 && facades.K > 0 && facades.H > 0,
+           'town.csv showcases all three facade kinds (C/K/H), got ' + JSON.stringify(facades));
+    }
+}
+
+
 // ===== Authored island builds (headless, via the translator) =====
 for (const b of ISLAND_BIOMES) {
     const w = buildAuthoredBiomeIsland(b, CSV_MAPS[b.id]);

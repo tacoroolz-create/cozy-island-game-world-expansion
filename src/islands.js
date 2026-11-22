@@ -150,6 +150,41 @@ function generateBiomeIsland(w, biome) {
     }
 }
 
+// ===== Batch 2: deterministic decorative-grass scatter =====
+// Convert a seeded portion of plain 'grass' tiles to 'grass_variant' tiles
+// (grass_cool / grass_stars / grass_yeesh). Seeded per biome+depth so the
+// same fall always produces the same island — saves/loads stay stable because
+// the (already-scattered) tiles themselves are what get serialized.
+function hashSeed(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+function scatterGrassVariants(w, biomeId, depth) {
+    const rand = mulberry32(hashSeed((biomeId || 'island') + ':' + depth));
+    for (let x = 0; x < w.tiles.length; x++) {
+        for (let y = 0; y < (w.tiles[x] ? w.tiles[x].length : 0); y++) {
+            const t = w.tiles[x][y];
+            if (!t || t.type !== 'grass' || t.solid || t.shackPad) continue;
+            if (rand() < 0.14) {
+                w.tiles[x][y] = { type: 'grass_variant', variant: Math.floor(rand() * 3) };
+            }
+        }
+    }
+}
+
 // ===== THE FALL =====
 
 let fallPrompt = null;   // { dir } — waiting on the player's yes/no
@@ -234,6 +269,10 @@ function fallToNextIsland(dir) {
     next.season = world.season;
     next.timeMinutes = world.timeMinutes;
     if (!authored) generateBiomeIsland(next, biome);
+    // Seeded decorative-grass scatter (batch 2): runs after depth is set so
+    // biome+depth fully determine the pattern; runs on authored and
+    // procedural islands alike. Tiles serialize as-is, so saves are stable.
+    scatterGrassVariants(next, biome.id, depth);
 
     maps.island = next;
     world = next;
